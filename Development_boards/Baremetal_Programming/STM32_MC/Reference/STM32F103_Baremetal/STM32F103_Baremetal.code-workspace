@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude":{
+			"**/*.o": true,
+			"**/*.d": true,
+		}
+		"files.associations": {
+			"main.h": "c",
+			"usart.h": "c",
+			"gpio.h": "c"
+		}
+	}
+}

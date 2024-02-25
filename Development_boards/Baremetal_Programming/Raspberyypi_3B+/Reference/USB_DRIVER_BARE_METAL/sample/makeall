@@ -1,0 +1,6 @@
+#!/bin/sh
+
+echo "----------mouse build--------"
+cd mouse
+make $1 $2 || exit
+cd ..

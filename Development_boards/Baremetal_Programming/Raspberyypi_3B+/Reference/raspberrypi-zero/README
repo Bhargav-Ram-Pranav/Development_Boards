@@ -1,0 +1,563 @@
+
+This is a collection of baremetal examples specifically for the
+raspberry pi zero.  Look at my other repositories for other raspberry
+pi boards.
+
+I have a raspberry pi repo at github (same place you found this repo)
+that has been popular (relative to anything else I have put out there).
+It started as soon as I got my first raspberry pi which was part of
+the mad rush when they first came out for the general public.  For some
+reason I assumed the design of both the board and chip would remain
+somewhat static.  But that didnt happen.  First the boards then the
+chips.  Granted the pi-zero changed once, but didnt affect anything
+I was using.  And who knows simply writing this down may cause a
+murphy's law thing and ruin this repo as well (they may change the
+chip/board or get rid of it all together).  I do not dislike the other
+chips or cards, but, the ARMv7 and ARMv8 cores independent of being
+multicore, have added a plethera of security and priority features
+that I struggle personally to absorb.  I have absorbed enough to get
+through my normal mix of examples, but the ARMv6 has close ties to the
+early ARM cores, and has enough features to allow Linux or other
+operating systems to run, but does not have a myriad of different
+possible ways of running it with a number of rules for each.  So with
+the pi-zero I can both isolate the examples I have already written, and
+perhaps refactor, and make some more.
+
+As far as I am concerned baremetal means no operating system.  The
+cloud computing community is trying to mis-use the word to mean fewer
+operating systems, so I recommend you use the term "cloud baremetal"
+for that incorrect use case.  Or use whatever term you want.  These
+examples take the reference material with specific register addresses
+in the ARM address space and talk to those register directly to make
+things happen.  Or to create some simple libraries/functions that
+are called by the main program, but there is no operating system to
+take that direct access to the hardware away from you.  At the same
+time I am taking control of the GNU compiler toolchain, mostly for
+portability reasons (all different pre-builts and ways to build your
+own that wouldnt have worked), but also as an educational tool for
+the first baremetal stumbling block, just getting the thing to boot.
+
+There is a very nice community of fellow baremetal developers at the
+raspberry pi website in the forums under Programming -> baremetal.
+
+https://www.raspberrypi.org
+
+So click on forums at the top then under Programming the first forum
+there is baremetal (alphabetically not because we are any more
+important than others).
+
+Lets dive in and then talk about what is going on.
+
+
+---- building the sd card ----
+
+Go to
+
+https://github.com/raspberrypi
+
+You DO NOT need to clone any of these repositories.
+
+Click on the firmware repo
+Then the boot directory
+
+bootcode.bin file then click on View Raw to download (or right click
+and save as depending on your browser).
+
+then back up one level and download start.elf the same way.
+
+Those are all the files we need from this repo, dont need kernel.img
+or anything else.
+
+You are going to need an sd card, doesnt need to be very big 1GB,
+2GB, etc.  Can probalby only get 4GB, 8GB or larger these days, thos
+are fine.
+
+Format the sd card for FAT32, if not already, you wont need any
+other files so you can clean up the root directory.
+
+Copy bootcode.bin and start.elf to the root directory of the sdcard.
+I have left a kernel.img file in the root directory of this repo
+copy that file over as well, do not create a config.txt like you read
+about on other sites, will cover that later.  Safely unmount your sd
+card and place it in the pi-zero, plug a usb cable into the connector
+nearest the corner.  The led nearest that corner should blink in a
+heartbeat like manner, two blinks, pause, two blinks, pause...If this
+doesnt work then you cant go any further, either you have done something
+wrong or they have changed the firmware in a way that is now incompatible
+with my example.  The heartbeat directory contains the source for this
+kernel.img.
+
+----
+
+One of two things is going to happen from here on out.  For each example
+or at least almost all of them.  You can copy the kernel.img file
+from that example to the sd card, and put it back in the raspi and
+power it on.  I call this the sd card dance.
+
+1) power off raspi
+2) remove sd card
+3) insert sd card in reader
+4) plug reader into computer
+5) mount/wait
+6) copy binary file to kernel.img
+7) sync/wait
+8) unmount
+9) insert sd card in raspi
+10) power raspi
+11) repeat
+
+And that is just part of the job if this is the programmable interface
+you have been given then like myself and others you may have to repeat
+this dance hundreds of times per application.
+
+The first simplest alternative is to make or use a bootloader.  I have
+one or a few and they are about as lean and mean and simple as it gets.
+No features, I have no interest in hundreds of thousands of lines of
+code in a bootloader, or a bootloader that pretty much is or needs
+an operating system itself just to deal with all of its features.  My
+bootloader will allow you to do the sd card dance one more time then
+after that you can download your program over serial/uart into the
+pi's memory and run it.  For each build you want to test you then
+only need to:
+
+1) power off raspi
+2) power on raspi
+3) download program
+4) run program
+
+Or if you add a reset button
+(see the reset_switch images switches easy to come by, broke the legs
+off one side twisted the others to match the holes)
+
+1) reset raspi
+2) download program
+3) run program
+
+There are two pins near the P1 header that say RUN next to them if you
+short those pins together it will reset the PI.
+
+Unfortunately for everyone the pi-zero did not come with the P1 headers
+installed, so at some point you are going to want access to at least the
+uart pins if not the whole header.  So either some soldering is required
+or some push in friction based pins are needed.  Likewise a momentary
+switch (normally open) to use as a reset button.
+
+In order to use my bootloader you will need to gain access to those
+uart pins, direct wired or header pins or some paperclips between boards
+whatever.  This is actually not a compilicated thing you just need
+the right tools (not expensive for ones that will work) and the
+confidence to try.  I now have a collection of boards, almost all
+FTDI based, but that is just due to their popularity, they are a
+more expensive part than others.  Note RS-232 has no business in this
+discussion, it is an electrical standard and will blow up your board,
+you are looking for 3.3v serial or uart from usb on the host side.
+
+Some examples
+
+https://www.adafruit.com/product/954
+https://www.sparkfun.com/products/9873
+https://www.sparkfun.com/products/13263
+
+At least one of which (I reserve the right to change this list at any
+time) may also require soldering or cuts and jumpers to select the
+desired voltage.  I bought a bunch from asia on ebay for like $2 each
+or less with a 3.3v and 5v jumper you want 3.3v for the raspberry pi.
+
+mysetup.png is a picture of my pi zero setup
+
+A uart solution, along with an led and resistor to blink are your
+two most important tools in your baremetal programmers toolbox.  Plus
+jumper wires or some way to hook these things up.  Soldering is
+eventually required, but you can sometimes just get someone to do
+that for you, or buy it that way.  Note that the general rule is the
+tx and rx are in reference to that board/product so the raspberry pi
+tx pin is an output, and rx an input, so you want to hook the tx of the
+uart to the rx of the raspi and the tx of the raspi to the rx of the
+usb uart board/cable.
+
+I tend to use FTDI breakout boards with male pins on them that came
+with or I added.  And female to female jumper wires I bought in a 100
+pack from Sparkfun.  Adafruit carries these things as well.
+
+-----
+
+You are going to need to go to the raspberrypi.org baremetal forum page
+https://www.raspberrypi.org click on forums, under programming click on
+baremetal.
+
+or maybe this link works directly
+
+https://www.raspberrypi.org/forums/viewforum.php?f=72
+
+There is a sticky topic near the top called Bare Metal resources.
+(is it bare metal with a space or baremetal without?  I have seen and
+used both)
+
+You definitely need the BCM2835-ARM-Peripherals document
+And note the errata link there as well, there are lots of errors in the
+document (which is true for any vendors documentation).
+
+Either there or just google raspberry pi pinout to see the P1 header
+pins.
+
+The ones we care about initially are when you are holding the board
+such that you are looking down on the top of the board (the side
+the bulk of the components are on) and the dual row header is on the
+right, the top right pin is pin1 the top left pin is pin 1 and they
+alternate like that.  The right edge of the board is thus 2,4,6,8
+and so on.
+
+2  outer corner
+4
+6  ground
+8  TX out
+10 RX in
+
+Wire these up to your usb uart solution tx to rx, rx to tx.  Figure
+out a dumb terminal program like minicom on linux or teraterm on windows
+or a myriad of others (putty works).  And then you can install my
+bootloader on your sd card, and have a lot of fun without needing to
+remove the sd card again.  When ready to deploy your application then
+copy your binary file to the board with the filename kernel.img and
+power on.  Note that I am initializing some peripherals so if you rely
+on those and didnt initialize them yourself then you have more work
+to do.
+
+See the bootloader10 directory for more information on using this
+bootloader.  A binary bootloader.img has been left in the base
+directory of this repo.  Copy this file to kernel.img on the sd card
+in order to use this binary.
+
+-----
+
+Start with the blinker programs like blinker01.  Blinker01 covers
+specific detail on how the bootstrap works to get the C programs up
+and running, linker script and other build topics.
+
+The raspberry pi zero has an led tied to GPIO pin 47 so these programs
+will blink that led using various methods to determine the time
+period of the blinks.  Various timers in the system and/or different
+ways to use the timers.
+
+These examples are built to be placed and run from the address 0x8000
+which is NOT where the ARM boots.  What we believe happens is
+
+-- some on chip (p)rom containing gpu code runs on the gpu to find
+the bootcode.bin file and load it (bootcode.bin is a gpu program not ARM)
+
+-- bootcode.bin initializes DRAM and other things and looks for and
+loads start.elf (another gpu program)
+
+--  start.elf contains the main gpu firmware that manages video for us
+and other things.  It then searches for kernel.img and loads it into
+the ARM and runs it.
+
+Note there are now several supported file names other than kernel.img
+that have subtle differences in what they do, this allows you to
+have one sd card you can move around I guess across your collection
+of different raspberry pi cards.  Dont know...We will use kernel.img
+here.  You can modify what happens by using a file named config.txt
+but I recommend against that for these examples.  You can/will make it
+so these cant run if you start to mess around there.  Other than early
+firmare images that were replaced before the masses had access to the
+raspberry pi, for the pi-zero and older pi1 cards using kernel.img
+it places the binary at 0x8000.  The arm boots from address 0x00000000
+there is some code which we can examine if we want, that is placed
+at 0x00000000 that is meant to prep the ARM to run linux, doesnt
+hurt us, and then branches to 0x8000.  So all of these programs are
+built to run at 0x8000, you are welcome to venture off from there if
+you want.
+
+I will copy or replace the bssdata directory/readme that I wrote for
+the other repository.  The very short story is linker scripts dont
+port and are an artform to themselves.  You might not yet realize
+that a program does not enter at main(), there is a bootstrap that
+happens before that.  Something has to zero your uniniitalized
+variables and initialize the others:
+
+unsigned int x;   //assumed to be 0 when main() runs
+unsigned int y=5; //assumed to be 5 when main() runs
+
+This takes code and more important linker script magic to get it all
+somewhat automatically built by the tools, I dont support that
+directly although the longer explanation in bssdata will show some
+ways to make that work since we are running ram only programs here.
+On a microcontroller where baremetal is very common your program
+and information about global variables (x starts off as zero and y
+a five above) needs to be in non-volatile memory: flash/rom.  And then
+copied to ram or some ram zeroed.  Generally the four minimal things
+a bootstrap does
+
+1) set the stack pointer
+2) zero .bss
+3) copy .data
+4) call main()
+
+I skip 2 and 3.
+
+The other thing I do which you may or may not like is I abstract the
+load/store access in PUT32/GET32 type functions:
+
+void PUT32 ( unsigned int address, unsigned int data);
+unsigned int GET32 ( unsigned int address );
+
+Like we see here
+
+    ra=GET32(GPFSEL4);
+    ra&=~(7<<21);
+    ra|=1<<21;
+    PUT32(GPFSEL4,ra);
+
+I have many many years of experience on various platforms at various
+levels and inside and connected to logic simulators for processors
+and/or peripherals.  This abstraction has countless benefits, but
+yes it does have a performance hit, but you can always inline your
+way out of that and not modify the PUT32() calls.  But without the
+abstraction it is a signifcant amount of work to get the features you
+gave up back.  Take it or leave it, your choice, this is how I do it
+and what you will see here.
+
+Since I do spend so much time day job and for fun evenings deep in
+the bowels of the chip or system.  The datasheet on one side of the
+screen and the code on the other, bits and addresses are directly
+visible, layers of hidden header files drive me nuts, cant see it
+cant debug it, sometimes have to compile and disassemble just to
+see what is going on.  In turn this drives other folks nuts, make
+your own repository with your own methods.
+
+This code is not meant to be a library or that kind of solution in
+any way, it is instead a reference design, or an example.  Instead of
+just taking as is, you being to replace a little at a time or the
+whole thing at once.  Meant to be as easy to read as possible in that
+it is usually brute force, very few files so everything is very visible,
+you can look at the manual and the code on the screen at the same time
+and connect all of the dots.  Then re-write it in whatever language or
+style you prefer, as simple or as complicated as you care to make it.
+
+I used to use newlib to primarily get at printf(), but then it became
+difficult to impossible to build for a while there, now it builds
+again but I realized I dont need any of the C library calls, the very
+rare occasion (memcpy, memset perhaps) I just implement my own.  I
+still rely heavily on uart output for debugging and seeing what is
+going on, and have a very small function that prints hex numbers out
+as you will see.
+
+printf("Hello World\n");
+
+Is actually one of the most complicated programs you can write, the
+backend required to support that in a typical system is massive.  A
+large amount of the C library, then there is all the system and video
+stuff.  You will see how simple that can be avoided by using a uart
+and a dumb terminal (the dumb terminal is itself now your computer
+so very complicated as well, but boils down into a dumb task).
+
+If you are not comfortable with binary/hexadecimal, you are not quite
+ready for baremetal or these examples and manuals.  You can count to 16
+with the four digits other than your thumb on one hand (two hands you
+can count well past 256), practice, or practice writing out 0 to 15
+(0x0 to 0xF, 0b0000 to 0b1111) with all three columns, binary, hex and
+decimal
+
+0000 0x0 0
+0001 0x1 1
+0010 0x2 2
+0011 0x3 3
+0100 0x4 4
+0101 0x5 5
+0110 0x6 6
+0111 0x7 7
+1000 0x8 8
+1001 0x9 9
+1010 0xA 10
+1011 0xB 11
+1100 0xC 12
+1101 0xD 13
+1110 0xE 14
+1111 0xF 15
+
+Just memorize it.  That is the easy part, shifting and masking come
+next along with ANDing, ORing, XORing, NOTing...Basic skills you will
+need for writing values to or reading values from registers in
+peripherals.
+
+Also get a calculator that you can convert between hex and decimal with
+two button presses (shift + hex, shift + decimal) or use a soft one
+on your computer or smart phone or get crafty with python or perl or
+bash commands on the terminal.
+
+We are not going to even talk about floating point here.
+
+I have used JTAG on these boards, and may venture into that as I have
+working examples in the other repository.  I use it constantly at my
+day job for running programs, but for most of my raspi work I just use
+my own bootloader on boards that I added a reset button.  The GPU is
+the processor in control on this chip and its JTAG is exposed, the ARM
+jtag is buried and uses shared pins, so you have to have a small program
+that internally connects those pins to the outside just to use JTAG
+to get at the on chip debugger in the ARM.
+
+-----
+
+After the blinker programs look at the uart programs.  Then wonder
+about to see what else I might have shown.
+
+-----
+
+As far as the basic peripherals go this chip is very easy to program,
+now as it often happens the documentation is lacking, most of baremetal
+work is reading docs and figuring things out, the writing of code is
+the easy part, in the noise.  Fortunately as mentioned above there
+is a page that contains errata found by the community.  Microcontrollers
+which this is not are far more concerned about power consumption
+and there are additinal layers of work you have to do, they often
+need more features in the peripherals as that is kinda why you are
+using the thing, where here the peripherals are not why you are using
+the thing, this is meant to be a general purpose computer, not a
+tiny widgit you use to display the time on a clock radio.
+
+-----
+
+The BCM2835 ARM peripheral document mentioned above, which you will
+need along with the ARMv6 Architectural Reference Manual and the
+ARM1176JZFS Technical Reference Manual from ARM's website
+(Actually the ARMv6 is covered in the ARMv5 Architectural Reference
+Manual which was just the ARM ARM and then things got too complicated
+to keep in one manual, just like this additional repo, so they
+made new manuals and ARMv4 through ARMv6 are in the ARMv5 manual
+for the most part).
+http://infocenter.arm.com
+You might have to give up an email address.  Anyway, the document shows
+addresses for things in the form 0x7Exxxxxx, but there is an important
+drawing that shows how that GPU/system address connects to the ARM
+address space at 0x20xxxxxx.  Now they werent quite thinking this
+through as 0x20000000 is 512MB, granted MMU magic can work around that
+but with the pi2 they changed where the peripherals are in the ARM
+address space to 0x3Fxxxxxx giving a larger linear address space for
+memory.  The pi zero uses the BCM2835 and the gpu firmware and/or
+hardware, but I assume it is a soft setting, uses 0x20xxxxxx as the
+base address for all of the peripherals.
+
+The total advertised amount of memory (DRAM) for a raspberry pi is
+shared between the ARM and GPU, you might be able to do some config.txt
+thing and take it all (and lose graphics/video/display) or move
+the dividing line around a bit.  All of these examples are tiny in
+the KBytes so I dont have to worry about this but may eventually
+depending on your applications you write.
+
+----- toolchain -----
+
+See the TOOLCHAIN file for information on where to get a toolchain to
+use for building these programs.
+
+----- assembly language -----
+
+At time small amounts of assembly language are required for baremetal
+work.  With practice you can often write simple C functions, compile
+and disassemble to discover instructions of interest.  I have provided
+all the assembly you will need to get started.  You are welcome to
+learn more and I recommend it.  As mentioned above one of the big
+jobs in baremetal is reading and interpreting documentation, another is
+mastering the toolchain as your program has to conform to the hardware
+the chip the processor, not some operating system as the compiler is
+setup to do by default.  A major trap you will fall into is simply not
+booting or crashing so early you cant "see" what happened.  So some
+level of understanding of both the tools and assembly language and
+machine code at times will separate you from the pack and allow you
+to debug through these problems.  A big reason for this repo and these
+examples is to get folks past this point, it is scary to dive into
+this kind of programming and the number of ways you can fail is massive
+first and foremost loading your program and resetting or powering on
+and have nothing happen and absolutely no idea how to debug it.  There
+is no way to know the sheer number of folks that have given up at
+that point and never returned to this, a large number of them could have
+been great contributors no doubt.  Some may go off and preach that you
+should never work at this level...
+
+A simple example of what I am talking about is the first time you setup
+a new build system for yourself and a linker script you should check to
+see that it is placing things where want them.   We need the entry point
+which I call _start because I think gnu requires that but perhaps not
+either way it has to be the first instruction, and I have successfully
+done that.
+
+Disassembly of section .text:
+
+00008000 <_start>:
+    8000:   e3a0d902    mov sp, #32768  ; 0x8000
+    8004:   eb000005    bl  8020 <notmain>
+
+00008008 <hang>:
+    8008:   eafffffe    b   8008 <hang>
+
+0000800c <PUT32>:
+    800c:   e5801000    str r1, [r0]
+    8010:   e12fff1e    bx  lr
+
+00008014 <GET32>:
+    8014:   e5900000    ldr r0, [r0]
+    8018:   e12fff1e    bx  lr
+
+0000801c <dummy>:
+    801c:   e12fff1e    bx  lr
+
+00008020 <notmain>:
+    8020:   e92d4070    push    {r4, r5, r6, lr}
+    8024:   e59f00ac    ldr r0, [pc, #172]  ; 80d8 <notmain+0xb8>
+    8028:   ebfffff9    bl  8014 <GET32>
+    802c:   e3c0160e    bic r1, r0, #14680064   ; 0xe00000
+    8030:   e3811602    orr r1, r1, #2097152    ; 0x200000
+
+But another thing that is not obvious here is the branch link (bl)
+to main shows 0x8020 as the address, which is correct, but for this
+instruction set that address is not embedded in the instruction, the
+instruction says branch link to 5+2 instructions ahead of where I am
+now.  I could load and run this code at a different address and at
+least that part would work, and sometimes you need to do this.  This
+is called position independent code (PIC) and you sometimes need
+to know how to do this.
+
+But for now, these examples are tested, I have provided all the
+assembly language you need.
+
+This is not the absolute minimim linker script that one could make
+for gnu ld, but pretty close.
+
+MEMORY
+{
+    ram : ORIGIN = 0x8000, LENGTH = 0x10000
+}
+
+SECTIONS
+{
+    .text : { *(.text*) } > ram
+    .bss : { *(.bss*) } > ram
+}
+
+Again see the bssdata directory on a much longer discussion.  The linker
+script here is its own programming language, and linkers are toolchain
+specific so I dont like to rely heavily on the linker script and
+connnections between it and the main code, so I dont, I do the minimum
+to get it to build for the address spaces I want and place the code
+in the right order so it boots.  The LENGTH value is just an arbitrary
+size I chose, ideally the amount of memory you want to allow for the
+program/data in this case, with some space left for the stack if you
+put your stack above this (see blinker01).  The skeleton for this code
+is highly portable and I dont want to be constantly changing this
+size, so I pick small numbers that fit most places and only increase
+when it fails to build, for that one application.
+
+My prefernce is to call the linker directly rather than have gcc do it
+indirectly (gcc the program is for the most part just a program that
+calls other programs, the compile process takes many steps and a number
+of separate programs it launches, including the assembler at the end as
+it generates assembly language then callse the assembler use -save-temps
+to see the intermediate files, the linker is one of those called unless
+you use -c or -S).  And then feed it a linker script, can do this from
+the gcc command line.  If/when you run into gcc library issues (need
+to do a divide for example) the linker for whatever reason does not
+know where it was launched from or want to use that information, gcc
+does and will use that information to find the gcc library archives in
+relative paths, so at times using gcc with -Xlinker is needed or at
+least makes for less work.  I tend to wait for it to break rather than
+use gcc all the time.
+

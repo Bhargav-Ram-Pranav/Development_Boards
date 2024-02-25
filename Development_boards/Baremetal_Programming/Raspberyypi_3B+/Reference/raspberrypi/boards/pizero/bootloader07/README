@@ -1,0 +1,83 @@
+
+See the top level README for information on where to find documentation
+for the raspberry pi and the ARM processor inside.  Also find information
+on how to load and run these programs.
+
+This example is for the pi zero, see other directories for other flavors
+of raspberry pi.
+
+This is a very simple bootloader.  Instead of the sd dance (see
+top level README), this makes life a bit simpler and greatly reduces
+physical wear and tear on the sd card socket.  Do the sd card dance one
+more time with this kernel.img.  Get some sort of serial solution to
+connect a dumb termial program with the ability to download raw/ascii
+files.
+
+The pi zero does not come with pins, you will want/need some way to
+make the serial connection, if you can solder and get some header
+pins great.  If not there are other ways, some pins can be shoved in
+rather than soldered.  Or balanced if nothing else (stick them in and
+lean them to the side so they touch), just dont short anything out.
+
+On the sd card end of the board the P1 connector pins are like this,
+same as other raspberry pi boards, but span the whole length of the
+board rather than orentied more toward one corner than another.
+
+|SD  |  12
+|CARD|  34
+        56
+        78
+        9.
+        ..
+        ..
+
+The pins we care about
+
+2
+4
+6
+8  TX out
+10 RX in
+
+The pi TX goes to the uart RX and the pi RX to the uart TX.
+
+Here are some examples of 3.3V level uarts, you need 3.3V level not 5V
+definitely not RS232C
+
+https://www.sparkfun.com/products/9873
+https://www.adafruit.com/products/954
+
+You can find these on ebay from china for a buck or two each with a
+jumper to select between 3.3V and 5V.
+
+This bootloader receives intel hex formatted files.
+
+https://en.wikipedia.org/wiki/Intel_HEX
+
+arm-none-eabi-objcopy myprogram.elf -O ihex myprogram.hex
+
+Using minicom you download by selecting ascii instead of xmodem
+or kermit or whatever.  This just sends the file as is.  If using
+some other terminal emulator you have to just figure it out.
+
+Minicom spawns other programs to do the downloads so there is or
+can be a dead period after downloading before minicom receives data
+so to deal with that once downloaded you press the letter g to go or
+run the program.  This way you or at least I dont lose any characters
+from the downloaded program (in the past I would automatically start
+the program, with xmodem that is an option with just ascii data
+it is not so much).
+
+I normally do not deliver binaries.  In this case I have included all
+of the build files so that you can at least get started without having
+to build the bootloader.  Backup whatever kernel.img file you are using
+and replace with the kernel.img file in this repo (on your sd card) to
+use this program.  If you have a config.txt on the sd card, rename it.
+
+There are a pair of holes on the board labelled RUN.  If you are able
+to solder or find other solutions (there are pins that can be pushed
+into holes like this), you can put a momentary switch that when closed
+will reset the board, and released allow it to boot again.  Then you
+can use this bootloader again.  Much easier than power cycling the
+board every time (turning the power off, then on by unplugging
+the usb).

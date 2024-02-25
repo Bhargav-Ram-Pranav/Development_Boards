@@ -1,0 +1,39 @@
+
+See the previous level README for schematic and programmers reference
+information.
+
+Someone on stackoverflow was having a problem with the DWT cycle counter
+not working.  The Cortex-M7 TRM had an error, which kinda stands out
+when you step back a few feet.  The list of registers all start with
+0xE0001xxx except the LAR and LSR.  Lock access and lock status.  For
+the cortex-m7 at least the one I have and the one the OP has the
+DWT lock is present and locked.  So you need to unlock it in order to
+set the cycle count enable bit in order to see the cycle counts.
+
+I imagine it is just bulk capacitance or sometihng, but found this
+interesting.  The reset button does not reset this stuff, if you
+run this program once, and then reset.  It is all enabled so from the
+beginning you can see the timer runing.  I commented out the
+unlock write to 0xE0001FB0, programmed that into flash.  Then pulled
+the power for a while, then powered back up.  Then uncommented the line
+and wrote it to flash, then you get the desired output that had us
+stumped for a while until someone pointed out the documentation error
+
+00000000
+00000000
+00000000
+00000000
+00000003
+40000000
+00000000
+00000000
+00000003
+40000000
+00000000
+00000000
+00000001
+40000001
+0000774F
+0000B311
+
+If you use 0xE0000FB0 as documented, it doesnt unlock the timer.

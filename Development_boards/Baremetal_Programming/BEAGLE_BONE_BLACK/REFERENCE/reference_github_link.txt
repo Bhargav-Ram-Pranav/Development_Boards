@@ -1,0 +1,2 @@
+https://github.com/allexoll/BBB-BareMetal
+https://github.com/ddlawrence/BBB_UART_IRQ/blob/master/main.c

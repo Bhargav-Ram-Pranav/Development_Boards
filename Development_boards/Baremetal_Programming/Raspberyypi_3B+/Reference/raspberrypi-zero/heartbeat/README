@@ -1,0 +1,11 @@
+
+See the top level README for information on where to find documentation
+for the raspberry pi and the ARM processor inside.  Also find information
+on how to load and run these programs.
+
+This is an LED blinker example for the pi zero, the source for the
+kernel.img binary in the root directory of this repo.
+
+The pi zero has one led that is tied to gpio 47.
+
+See blinker01 for more information.
